@@ -61,7 +61,6 @@ def run():
             result = zabbix_sender.send(packet)
         except:
             pass
-        print("test")
         time.sleep(5)
     
 
