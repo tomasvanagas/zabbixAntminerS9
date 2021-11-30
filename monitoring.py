@@ -1,8 +1,6 @@
-serverIp = '' # zabbix ip
-antminer = '192.168.'
-android = '192.168.'
-trapperHostInZabbix = 'zabbixTrapper'
-
+serverIp='' # zabbix ip
+antminer='192.168.'
+android='192.168.43.1'
 
 userName='root'
 userPassword='root'
@@ -19,7 +17,7 @@ zabbix_sender = ZabbixSender(zabbix_server=serverIp, zabbix_port=10051)
 
 
 def currentTemperatures():
-    soup=BeautifulSoup((requests.get("http://"+antminer+"/cgi-bin/minerStatus.cgi", auth=HTTPDigestAuth(userName,userPassword))).text,'html.parser')
+    soup=BeautifulSoup((requests.get("http://"+antminer+"/cgi-bin/minerStatus.cgi", timeout=5, auth=HTTPDigestAuth(userName,userPassword))).text,'html.parser')
     tchip=soup.findAll("div", {"id": "cbi-table-1-temp2"})
     out=[]
     for i in tchip:
@@ -30,38 +28,44 @@ def currentTemperatures():
 
 def run():
     while True:
-
-        # 
+        #print("test")
         try:
-            temp1 = currentTemperatures().split(' ')[0]
-            temp2 = currentTemperatures().split(' ')[1]
-            temp3 = currentTemperatures().split(' ')[1]
-            print("1: " + temp1 + "  2: " + temp2 + "  3: " + temp3 + "")
+            temps = currentTemperatures().split(' ')
+            temp1 = temps[0]
+            temp2 = temps[1]
+            temp3 = temps[2]
+            print("Antminer --> 1: " + temp1 + "  2: " + temp2 + "  3: " + temp3 + "")
             
             packet = [
-                ZabbixMetric(trapperHostInZabbix, 'Miner1', temp1),
-                ZabbixMetric(trapperHostInZabbix, 'Miner2', temp2),
-                ZabbixMetric(trapperHostInZabbix, 'Miner3', temp3)
+                ZabbixMetric('ZabbixTrapper', 'Miner1', temp1),
+                ZabbixMetric('ZabbixTrapper', 'Miner2', temp2),
+                ZabbixMetric('ZabbixTrapper', 'Miner3', temp3)
             ]
 
             result = zabbix_sender.send(packet)
         except:
+            print("[*] Antminer not found.")
             pass
 
         try:
             session = requests.Session()
-            htmlContent = session.get('http://' + android + ':1880/sensor').text
+            htmlContent = session.get('http://' + android + ':1880/sensor', timeout=5).text
+            #print(htmlContent)
             jsonObj = json.loads(htmlContent)
-            print(jsonObj['temperature'])
+            print("Garazas: " + str(jsonObj['temperature']))
 
             packet = [
-                ZabbixMetric(trapperHostInZabbix, 'RoomTemp', jsonObj['temperature']),
+                ZabbixMetric('ZabbixTrapper', 'RoomTemp', jsonObj['temperature']),
             ]
 
             result = zabbix_sender.send(packet)
         except:
+            print("[*] Android not found.")
             pass
+        print("[*] Working...")
+        #print()
         time.sleep(5)
     
 
 run()
+
